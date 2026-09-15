@@ -29,6 +29,8 @@ project's own design system; this owns only the order the work happens in.
 | They are asking | Read |
 |---|---|
 | Should this exist? Is it worth building? | `method/disciplines.md` §0 |
+| How do I find out? What do I ask? | `method/intake.md` |
+| What do we actually know, and how do we know it? | `method/evidence.md` |
 | What should it do? Who for? | `method/journeys.md` |
 | What are the real things and states? | `method/disciplines.md` §2 |
 | What stack? Where are the seams? | `method/disciplines.md` §3 — and check it is allowed yet |
@@ -37,6 +39,17 @@ project's own design system; this owns only the order the work happens in.
 | What should it look like? How should it move? | `inspire` skill, then `method/originality.md` |
 | Emails, support, pricing page, cancellation, launch copy | `method/lanes.md` §A |
 | Did it work? | `method/disciplines.md` §6 |
+
+## Two halves, one failure mode
+
+**Product knowledge** — intake → evidence pool → journeys.
+**Design reference** — a teardown library → inspire → a direction brief.
+
+Both exist to stop a claim drifting from what it was based on, so both are
+gated. A journey may only cite pain retained in the pool
+(`tools/evidence-lint.mjs`); a direction may only cite numbers retained in a
+teardown's evidence (`tools/reconcile.mjs`). Each gate caught a real published
+claim that had stopped being true.
 
 ## The four things this skill exists to stop
 
@@ -66,7 +79,10 @@ useful than hedging.
 - **Do not skip discipline 0** because the product is obviously good. That is
   what everyone thinks at discipline 0.
 - **Do not invent pain.** Journeys draw from a written evidence pool of things
-  that actually happened. If there is no known pain, say so.
+  that actually happened, and the gate checks it. If there is no known pain, say
+  so in the pool with a date — an honest empty pool beats an imagined full one.
+- **Do not take a feature request as evidence.** The item is whatever made them
+  ask for it, and you usually have to go back and find out.
 - **Do not put implementation in a journey** — no component names, API shapes,
   field names or stack choices. Experience terms only.
 - **Do not let a reference become a plan.** A site the user admired enters at

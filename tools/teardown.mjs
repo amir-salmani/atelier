@@ -20,7 +20,7 @@ import { gzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as probe from './probe.mjs';
-import { digestSampler } from './analyze.mjs';
+import { digestSampler, diagnose } from './analyze.mjs';
 import { buildSheet, burst } from './sheet.mjs';
 
 
@@ -77,50 +77,6 @@ const LAUNCH = {
   ...(PROXY ? { proxy: { server: PROXY } } : {}),
 };
 
-// A bot wall and a client-side crash both return HTTP 200 and a complete-looking
-// packet full of zeros — indistinguishable from a site that simply has no
-// motion. Never let either pass silently.
-//
-// They are different failures. A bot wall means you measured nothing. A crashed
-// render means you measured the stylesheet but not the page: the CSS histograms
-// are real, everything visual is worthless.
-function diagnose(facts) {
-  const title = facts.surface.title || '';
-  const text = `${title} ${facts.surface.headings.map(h => h.text).join(' ')}`.toLowerCase();
-  const blocked = [], crashed = [], throttled = [];
-
-  if (/\b429\b|slow down|too many requests|rate limit/.test(text))
-    throttled.push(`rate-limited: "${title}"`);
-  if (facts.consoleErrors.filter(e => /\b429\b/.test(e)).length >= 2)
-    throttled.push('repeated 429s in console');
-
-  if (/sorry, you have been blocked|unable to access|access denied|attention required|just a moment|verify you are (a )?human|checking your browser|enable javascript and cookies|are you a robot|request blocked|captcha/.test(text))
-    blocked.push(`block-page text: "${title}"`);
-  if (facts.consoleErrors.filter(e => /\b403\b|blocked/i.test(e)).length >= 2)
-    blocked.push('repeated 403s in console');
-  if (facts.perf.transferKB < 60 && facts.surface.imgTotal === 0 && facts.css.rulesSeen < 250)
-    blocked.push(`only ${facts.perf.transferKB}KB transferred, and almost no CSS`);
-
-  if (/error creating webgl|webgl (is )?(not )?(supported|unavailable|disabled)|your browser does not support webgl/.test(text))
-    crashed.push(`the page is a WebGL canvas and rendering was off — re-run with --webgl`);
-  if (/page (couldn.t|could not|failed to) load|application error|something went wrong|client-side exception|internal server error|^error$|404|not found/.test(text))
-    crashed.push(`error text on the page: "${title}"`);
-  // A rich stylesheet behind an empty document is a render that died, not a
-  // site that is empty.
-  if (facts.css.rulesSeen > 500 && facts.surface.focusableCount <= 3 && facts.page.screensOfScroll <= 1.2)
-    crashed.push(`${facts.css.rulesSeen} CSS rules but ${facts.surface.focusableCount} focusable elements on one screen`);
-
-  // A block page says so in its title; anything else is circumstantial and needs
-  // corroboration. Third-party 403s alone are just a dead analytics beacon.
-  const decisive = blocked.some(h => h.startsWith('block-page text'));
-  // Rate limiting is its own thing: not a wall to route around, a queue to wait
-  // out. A different exit IP usually gets the same answer.
-  return {
-    blocked: (decisive || blocked.length >= 2) ? blocked : [],
-    crashed: throttled.length ? [] : crashed,
-    throttled,
-  };
-}
 
 const NAV = 90000;
 

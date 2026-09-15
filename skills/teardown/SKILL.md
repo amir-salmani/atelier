@@ -27,50 +27,48 @@ pin.
 because Chromium sizes its rasteriser pool to the core count and will otherwise
 take the machine down.
 
-## Then look at the sheets
+**Then read `../../docs/reading-a-teardown.md`** — the order to read a packet
+in, the five numbers, and the ways a packet lies. It is the authority and this
+file does not restate it.
 
-`entrance-sheet.png`, `scroll-sheet.png`, `mobile-sheet.png` — **read the images
-before opening any JSON.** They are labelled contact sheets; reading `facts.json`
+Look at the contact sheets **before** opening any JSON. Reading `facts.json`
 first means arguing from whatever happens to be countable rather than from what
-the page does. The order and the reasons are in `docs/reading-a-teardown.md`.
+the page does.
 
-Then `motion.json → summary`: five numbers that carry most of the signal.
+## Writing it up
 
-## Then write the authored half
-
-One markdown file per site. The packet is regenerable evidence; the write-up is
-the only part worth keeping. `examples/rothfinder-com.md` is the format.
+One markdown file per site; `../../examples/rothfinder-com.md` is the format.
+The packet is regenerable, the write-up is not.
 
 1. **Every claim cites its artifact** — a frame and its timestamp, a CSS rule, a
-   measured duration. A sentence with no artifact behind it is a mood board.
-2. **Evidence apart from conclusions.** What the page does, then what you infer.
-3. **Name a refusal.** What you would *not* copy, and why. A teardown with no
-   refusal in it was not read critically.
-4. **Reproducible numbers over adjectives.** `320ms, decelerating, 90ms stagger`
-   beats "snappy".
+   measured duration.
+2. **Declare what you cite** in a `capture:` block and run
+   `node tools/reconcile.mjs <dir>`. A re-run replaces the evidence a published
+   claim rests on; this is the only thing that catches it.
+3. **Name a refusal.** A teardown with no refusal in it was not read critically.
 
 ## The line
 
-**Learn the mechanism, never lift the dressing.** Timing, easing, the *idea* of
-a pinned section — fair. A layout, a headline structure, an identity — not.
-A teardown library makes copying easy, which is why the rule is a gate:
-`method/originality.md`, four tests, each of which can fail.
+**Learn the mechanism, never lift the dressing.** A teardown library makes
+copying easy, which is why the rule is a gate — `../../method/originality.md`,
+four tests, each of which can fail.
 
 ## Do not
 
 - **Do not describe motion from a static screenshot.** Run the tool, or say you
   have not.
-- **Do not claim an exact easing from `motion.json`.** It names the nearest of
-  ten standard curves and reports the fit error. The literal `cubic-bezier()` in
-  `facts.json` is the exact value, when the site has one.
+- **Do not trust a packet full of zeros.** A bot wall, a crashed render, a
+  WebGL-off canvas and a 429 all produce one. The runner names each; read what
+  it printed.
+- **Do not compare a sampled duration with a declared one.** Sampled medians
+  measure an opacity band and run ~20% short.
 - **Do not report the packet's CWV as a performance verdict.** One lab run, one
-  machine. It ranks sites against each other; it is not a field measurement.
-- **Do not hand-edit anything under `_packet/`.** It is generated and will be
-  overwritten.
-- **Do not conclude a section is empty from one blank frame** — lazy images and
-  timed-out screenshots look identical to nothing being there.
-- **Do not run it against a site you are not allowed to load**, and do not point
-  it at anything behind someone else's authentication.
+  machine.
+- **Do not hand-edit anything under `_packet/`** except nothing — it is
+  generated, and `evidence.json` is written by the tool.
+- **Do not run it against a site you are not allowed to load**, and never at
+  anything behind someone else's authentication. Run one site at a time; a tight
+  retry loop rate-limited one site out of this library for a whole session.
 
 ## The family
 
