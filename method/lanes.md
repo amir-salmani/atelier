@@ -97,5 +97,17 @@ nine times. Neither is a mood. Both are a token.
 ### The reduced-motion rule
 
 A direction that has not said what it does under `prefers-reduced-motion` is not
-finished. Very few of the sites worth learning from handle it at all — which
-makes it the cheapest thing on this list to be better at.
+finished.
+
+Measured across eleven sites, roughly half declare it and half do not — and the
+split is instructive rather than random. **The two most motion-heavy builds have
+the most thorough opt-outs** (26 and 23 media blocks, with animations that
+genuinely stop). **The sites that gate your first two seconds behind a
+full-screen loader have none at all.** The cost falls in exactly the wrong
+place.
+
+Two failure modes, and the second is worse:
+
+- **No block at all**, on a page with a timed entrance curtain.
+- **A block that does not stop the motion** — one site declares two, and leaves
+  twelve animations running under `reduce`. That looks handled and is not.
