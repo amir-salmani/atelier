@@ -49,8 +49,13 @@ the page does.
 - **Cross-origin stylesheets are re-fetched and re-injected** to be readable. If
   `rehydrated.attempted > rehydrated.rehydrated`, some CSS was genuinely never
   seen and the rule counts are floors, not totals.
-- **A site changes.** Every number is true of one capture on one date. Put the
-  date in the teardown and treat an old one as a lead, not a fact.
+- **A site changes, and so does your own capture.** Every number is true of one
+  capture on one date — including re-runs of the same page on the same machine.
+  Rothfinder's entrance stagger measured 142, 150 and 155ms across three
+  captures. Cite the retained one; mention the others as corroboration, never as
+  the headline.
+- **A site's stagger is not one number.** Podium has four groups at 151, 88, 177
+  and 451ms. Read `motion.json → staggers` in full before quoting one.
 - **The entrance clock runs slow.** The CPU pin throttles page load, so absolute
   timestamps on `entrance-sheet.png` are inflated against what a user sees — the
   same site measured 1.7s unpinned and 3.3s pinned to four cores. **Read order
@@ -58,6 +63,38 @@ the page does.
   `facts.json` are unaffected: CSS animation time is wall-clock, and declared
   durations come straight off the stylesheet. Use `--cores` to widen the pin if
   you need the entrance timeline itself to be realistic.
+
+## Cite only what is retained
+
+A packet is regenerable, which means **a re-run silently replaces the evidence a
+published claim rests on.** This happened: a teardown here claimed a 142/150ms
+stagger across two groups, and a later capture of the same page found one group
+at 155ms. Nothing complained, and the figure had already propagated into a
+synthesis, a README and a design brief.
+
+So `teardown.mjs` writes **`evidence.json`** — the numbers a write-up is allowed
+to cite, small enough to commit. Keep it in version control and let the frames,
+sheets, video and raw samples stay disposable.
+
+Declare what you cite, in the teardown's own frontmatter:
+
+```yaml
+capture:
+  url: https://example.com/
+  date: 2026-09-15
+  medianDurationMs: 330
+  staggerGapsMs: [155]
+  reducedMotionBlocks: 0
+```
+
+Then the gate is mechanical:
+
+```bash
+node tools/reconcile.mjs <teardowns-dir>    # exits 1 on drift
+```
+
+Prose may say what it likes; the frontmatter is the contract. Break a number and
+watch it fail before you believe a pass.
 
 ## Writing the authored half
 

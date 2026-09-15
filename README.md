@@ -39,8 +39,8 @@ screenshot — and the word-spacing collapse is not something you would guess.*
 **And the numbers behind them**, because "snappy" is not buildable:
 
 ```
-12 reveals, median 337ms, easing ease-out (fit error 0.025)
-2 staggered groups: 142ms and 150ms — measured independently
+9 reveals, median 330ms, easing ease-out
+1 staggered group: 155ms
 reduced-motion blocks: 0
 ```
 
@@ -50,10 +50,10 @@ on the clock does not** — the CPU pin slows page load, so absolute positions i
 the entrance sheet run long against what a user sees. The *order and proportion*
 are what to read there.
 
-A stagger that measures the same in two unrelated places is a *decision*
-someone made, and you can adopt the decision without copying the page. Across
-eleven sites measured this way, three unrelated builds independently landed on
-**142ms, 150ms and 151ms** — and two curves,
+A stagger that measures the same on two unrelated sites is a *decision* someone
+made, and you can adopt the decision without copying the page. Across eleven
+sites measured this way, three unrelated builds landed their entrance stagger on
+**155ms, 151ms and 183ms** — and two curves,
 `cubic-bezier(0.22, 1, 0.36, 1)` and `cubic-bezier(0.32, 0.72, 0, 1)`, turn up
 on five sites across five different stacks.
 

@@ -464,6 +464,39 @@ async function reducedMotionPass(browser) {
     const motion = digestSampler(desktop.sampler);
     await save('facts.json', { ...desktop.facts, mobile, reducedMotion: reduced });
     await save('motion.json', motion);
+    // The numbers an authored teardown is allowed to cite, kept small enough to
+    // commit. The rest of the packet is disposable; this is not. A claim whose
+    // evidence was thrown away is a claim nobody can check — including you,
+    // after the next re-run overwrites it.
+    const top = (o, n) => Object.entries(o || {}).sort((a, b) => b[1] - a[1]).slice(0, n);
+    await save('evidence.json', {
+      url,
+      capturedAt: desktop.facts.capturedAt,
+      blocked: desktop.facts.blocked,
+      renderFailed: desktop.facts.renderFailed,
+      throttled: desktop.facts.throttled ?? false,
+      webglRendered: desktop.facts.webglRendered,
+      scrollHost: desktop.facts.page.scrollHost,
+      screensOfScroll: desktop.facts.page.screensOfScroll,
+      medianDurationMs: motion.summary.medianDurationMs,
+      revealCount: motion.summary.revealCount,
+      staggerGapsMs: motion.staggers.map(s => s.medianGapMs),
+      easingFamily: motion.summary.easingFamilies?.[0]?.[0] ?? null,
+      cssRules: desktop.facts.css.rulesSeen,
+      animatedRules: desktop.facts.css.animatedTotal,
+      keyframes: desktop.facts.css.keyframes.length,
+      topEasings: top(desktop.facts.css.easings, 5),
+      topDurations: top(desktop.facts.css.durations, 5),
+      reducedMotionBlocks: reduced.reducedMotionMediaBlocks ?? null,
+      runningUnderReduce: reduced.runningAnimations ?? null,
+      lcpMs: desktop.facts.perf.lcp,
+      cls: desktop.facts.perf.cls,
+      transferKB: desktop.facts.perf.transferKB,
+      imgTotal: desktop.facts.surface.imgTotal,
+      imgNoAlt: desktop.facts.surface.imgNoAlt,
+      tapTargetsUndersized: mobile.tapTargetsUndersized ?? null,
+    });
+
     // Raw frames kept compressed so the digest can be re-cut without a re-run.
     await writeFile(path.join(OUT, 'sampler.json.gz'), gzipSync(JSON.stringify(desktop.sampler)));
 
