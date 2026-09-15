@@ -6,6 +6,7 @@
 //   node tools/teardown.mjs https://example.com [--slug name] [--steps 16]
 //                           [--out DIR] [--webgl] [--cores N] [--no-video]
 //                           [--burst-frames 26] [--burst-every 110]
+//                           [--proxy socks5://127.0.0.1:1080]
 //
 // Artifacts land in <out>/<slug>/ and nothing is written outside it, where
 // <out> is --out, else $ATELIER_TEARDOWNS, else ./teardowns/_packet in the
@@ -35,6 +36,7 @@ const WEBGL = args.includes('--webgl');
 // 1.8s window clipped the payoff. Widen the default; --burst-* narrows it.
 const BURST = { frames: +flag('burst-frames', 26), everyMs: +flag('burst-every', 110) };
 const CORES = +flag('cores', Math.max(2, Math.floor(os.cpus().length / 4)));
+const PROXY = flag('proxy', process.env.ATELIER_PROXY || null);
 const PACKETS = path.resolve(flag('out', process.env.ATELIER_TEARDOWNS || 'teardowns/_packet'));
 const OUT = path.join(PACKETS, slug);
 
@@ -72,7 +74,42 @@ const LAUNCH = {
       ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
       : ['--disable-gpu', '--disable-software-rasterizer']),
   ],
+  ...(PROXY ? { proxy: { server: PROXY } } : {}),
 };
+
+// A bot wall and a client-side crash both return HTTP 200 and a complete-looking
+// packet full of zeros — indistinguishable from a site that simply has no
+// motion. Never let either pass silently.
+//
+// They are different failures. A bot wall means you measured nothing. A crashed
+// render means you measured the stylesheet but not the page: the CSS histograms
+// are real, everything visual is worthless.
+function diagnose(facts) {
+  const title = facts.surface.title || '';
+  const text = `${title} ${facts.surface.headings.map(h => h.text).join(' ')}`.toLowerCase();
+  const blocked = [], crashed = [];
+
+  if (/sorry, you have been blocked|unable to access|access denied|attention required|just a moment|verify you are (a )?human|checking your browser|enable javascript and cookies|are you a robot|request blocked|captcha/.test(text))
+    blocked.push(`block-page text: "${title}"`);
+  if (facts.consoleErrors.filter(e => /\b403\b|blocked/i.test(e)).length >= 2)
+    blocked.push('repeated 403s in console');
+  if (facts.perf.transferKB < 60 && facts.surface.imgTotal === 0 && facts.css.rulesSeen < 250)
+    blocked.push(`only ${facts.perf.transferKB}KB transferred, and almost no CSS`);
+
+  if (/error creating webgl|webgl (is )?(not )?(supported|unavailable|disabled)|your browser does not support webgl/.test(text))
+    crashed.push(`the page is a WebGL canvas and rendering was off — re-run with --webgl`);
+  if (/page (couldn.t|could not|failed to) load|application error|something went wrong|client-side exception|internal server error|^error$|404|not found/.test(text))
+    crashed.push(`error text on the page: "${title}"`);
+  // A rich stylesheet behind an empty document is a render that died, not a
+  // site that is empty.
+  if (facts.css.rulesSeen > 500 && facts.surface.focusableCount <= 3 && facts.page.screensOfScroll <= 1.2)
+    crashed.push(`${facts.css.rulesSeen} CSS rules but ${facts.surface.focusableCount} focusable elements on one screen`);
+
+  // A block page says so in its title; anything else is circumstantial and needs
+  // corroboration. Third-party 403s alone are just a dead analytics beacon.
+  const decisive = blocked.some(h => h.startsWith('block-page text'));
+  return { blocked: (decisive || blocked.length >= 2) ? blocked : [], crashed };
+}
 
 const NAV = 90000;
 
@@ -88,6 +125,16 @@ async function open(page, target = url) {
   }
 }
 
+// document.documentElement is null only while a navigation is in flight. A site
+// with a heavy loader can still be swapping documents when the next evaluate
+// lands, which reads as a null-property crash rather than as "wait longer".
+async function ready(page) {
+  await page.waitForFunction(
+    () => !!document.documentElement && !!document.body && document.readyState !== 'loading',
+    null, { timeout: 30000 },
+  ).catch(() => log('document never settled, continuing'));
+}
+
 async function settle(page) {
   // A heavy SPA on four pinned cores can miss domcontentloaded's budget while
   // still being perfectly readable. Waiting is best-effort.
@@ -98,17 +145,68 @@ async function settle(page) {
 
 // Scroll the way a person does — in overlapping steps with a pause — so
 // IntersectionObserver reveals actually fire instead of being skipped past.
+// Not every page scrolls its document. An app shell scrolls an inner element,
+// and a scroll-hijacking library translates a wrapper while the document stays
+// exactly one viewport tall. Both report scrollHeight === innerHeight, which
+// reads identically to "this site is one screen long" — and produces a packet
+// claiming zero reveals on a page full of them.
+async function scrollHost(page) {
+  return page.evaluate(() => {
+    const de = document.documentElement;
+    if (de.scrollHeight > innerHeight + 40) return { kind: 'document', height: de.scrollHeight };
+    let best = null;
+    for (const el of document.querySelectorAll('body *')) {
+      const cs = getComputedStyle(el);
+      if (!/auto|scroll/.test(cs.overflowY)) continue;
+      if (el.scrollHeight > el.clientHeight + 40 && (!best || el.scrollHeight > best.scrollHeight)) best = el;
+    }
+    if (best) { window.__tdHost = best; return { kind: 'element', height: best.scrollHeight }; }
+    // Nothing declares itself scrollable. Something is still probably taller
+    // than the viewport — a translated wrapper — so fall back to wheel events.
+    const tallest = [...document.querySelectorAll('body *')]
+      .reduce((m, el) => Math.max(m, el.getBoundingClientRect().height), 0);
+    return { kind: tallest > innerHeight * 1.5 ? 'wheel' : 'none', height: Math.round(tallest) };
+  }).catch(() => ({ kind: 'document', height: 0 }));
+}
+
 async function scrollThrough(page, steps, onStep) {
-  const height = await page.evaluate(() => document.documentElement.scrollHeight);
-  const vh = await page.evaluate(() => innerHeight);
-  const span = Math.max(height - vh, 1);
+  await ready(page);
+  const vh = await page.evaluate(() => innerHeight).catch(() => 900);
+  const host = await scrollHost(page);
+  if (host.kind !== 'document') log(`scroll host: ${host.kind} (${host.height}px) — document does not scroll`);
+  const span = Math.max(host.height - vh, 1);
+
+  // Wheel events drive a hijacked scroller, an inner container under the
+  // pointer, and an ordinary document alike — so they are the fallback for
+  // anything that is not a plain document scroll.
+  if (host.kind === 'wheel' || host.kind === 'none') {
+    await page.mouse.move(720, 450).catch(() => {});
+    const per = Math.round(span / Math.max(steps, 1));
+    for (let i = 0; i <= steps; i++) {
+      if (i) await page.mouse.wheel(0, per).catch(() => {});
+      await page.waitForTimeout(700);
+      const y = await page.evaluate(() => Math.round(window.scrollY || 0)).catch(() => 0);
+      if (onStep) await onStep(i, y || i * per);
+    }
+    return { height: host.height, vh, host: host.kind };
+  }
+
   for (let i = 0; i <= steps; i++) {
     const y = Math.round((span * i) / steps);
-    await page.evaluate(v => window.scrollTo({ top: v, behavior: 'smooth' }), y);
+    const ok = await page.evaluate(
+      ([v, useEl]) => {
+        const t = useEl ? window.__tdHost : window;
+        if (!t) return false;
+        t.scrollTo({ top: v, behavior: 'smooth' });
+        return true;
+      },
+      [y, host.kind === 'element'],
+    ).then(r => r, () => false);
+    if (!ok) { await ready(page); continue; }
     await page.waitForTimeout(650);
     if (onStep) await onStep(i, y);
   }
-  return { height, vh };
+  return { height: host.height, vh, host: host.kind };
 }
 
 async function perfMetrics(page) {
@@ -181,14 +279,15 @@ async function desktopPass(browser) {
     await page.reload({ waitUntil: 'commit', timeout: NAV });
     entranceCaptured = await burst(page, path.join(OUT, 'frames-entrance'), { ...BURST, budgetMs: 14000 });
     await settle(page);
-    await page.evaluate(probe.dismissOverlays);
+    await ready(page);
+    await page.evaluate(probe.dismissOverlays).catch(() => {});
   } catch (e) {
     log(`entrance capture skipped: ${e.message.split('\n')[0]}`);
     await page.evaluate(probe.installSampler).catch(() => {});
   }
 
   await mkdir(path.join(OUT, 'frames'), { recursive: true });
-  const { height, vh } = await scrollThrough(page, STEPS, async (i, y) => {
+  const { height, vh, host: scrollKind } = await scrollThrough(page, STEPS, async (i, y) => {
     await shot(page, path.join(OUT, 'frames', `scroll-${String(i).padStart(2, '0')}-y${String(y).padStart(6, '0')}.png`));
   });
 
@@ -227,16 +326,20 @@ async function desktopPass(browser) {
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
   await page.waitForTimeout(1200);
 
-  const sampler = await page.evaluate(probe.readSampler);
+  await ready(page);
+  const probed = async (name, fn, fallback) =>
+    page.evaluate(fn).catch(e => (log(`${name} probe failed: ${e.message.split('\n')[0]}`), fallback));
+
+  const sampler = await probed('sampler', probe.readSampler, { series: {} });
   const facts = {
     url, capturedAt: new Date().toISOString(), viewport: '1440x900',
     gates, rehydrated, perf, consoleErrors: consoleErrors.slice(0, 10),
     webglRendered: WEBGL, entranceFrames: entranceCaptured,
-    page: { docHeight: height, viewportHeight: vh, screensOfScroll: +(height / vh).toFixed(1) },
-    css: await page.evaluate(probe.collectCss),
-    live: await page.evaluate(probe.collectLive),
-    stack: await page.evaluate(probe.fingerprint),
-    surface: await page.evaluate(probe.collectSurface),
+    page: { docHeight: height, viewportHeight: vh, screensOfScroll: +(height / vh).toFixed(1), scrollHost: scrollKind },
+    css: await probed('css', probe.collectCss, { keyframes: [], animated: [], animatedTotal: 0, easings: {}, durations: {}, rulesSeen: 0, customProps: {}, crossOriginSheets: 0 }),
+    live: await probed('live', probe.collectLive, []),
+    stack: await probed('stack', probe.fingerprint, { globals: {}, fromBundle: {}, canvases: [], videos: [], scriptCount: 0 }),
+    surface: await probed('surface', probe.collectSurface, { title: '(probe failed)', headings: [], type: [], colours: [], radii: [], shadows: [], fonts: [], meta: {}, jsonld: [], sections: [], imgTotal: 0, imgNoAlt: 0, imgLazy: 0, buttonsNoName: 0, focusableCount: 0, docHeight: 0 }),
     hovers,
   };
 
@@ -343,6 +446,9 @@ async function reducedMotionPass(browser) {
     const mobile = await attempt('mobile', () => mobilePass(browser));
     const reduced = await attempt('reduced-motion', () => reducedMotionPass(browser));
 
+    const { blocked, crashed } = diagnose(desktop.facts);
+    desktop.facts.blocked = blocked.length ? blocked : false;
+    desktop.facts.renderFailed = crashed.length ? crashed : false;
     const motion = digestSampler(desktop.sampler);
     await save('facts.json', { ...desktop.facts, mobile, reducedMotion: reduced });
     await save('motion.json', motion);
@@ -360,6 +466,16 @@ async function reducedMotionPass(browser) {
     }
 
     const f = desktop.facts;
+    if (blocked.length) {
+      console.log(`\n  !! LOOKS BLOCKED — this packet is not a measurement of the site.`);
+      for (const h of blocked) console.log(`     · ${h}`);
+      console.log(`     Retry with --proxy or from another network. Do not write a teardown from this.`);
+    }
+    if (crashed.length) {
+      console.log(`\n  !! RENDER FAILED — the stylesheet loaded, the page did not.`);
+      for (const h of crashed) console.log(`     · ${h}`);
+      console.log(`     CSS histograms below are real. Every frame, reveal and hover is not.`);
+    }
     console.log(`\n  ${f.surface.title}`);
     console.log(`  ${f.page.screensOfScroll} screens · ${f.css.keyframes.length} keyframes · ${f.css.animated.length} animated rules · ${f.live.length} live animations`);
     console.log(`  LCP ${f.perf.lcp}ms · CLS ${f.perf.cls} · ${f.perf.transferKB}KB over ${f.perf.resourceCount} requests`);

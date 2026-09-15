@@ -76,6 +76,31 @@ number is the single fastest read on whether motion was designed or decorated.
 | `facts.json` | Keyframes, transitions, the easing and duration histograms, the site's own custom properties, stack fingerprint, type and colour census, CWV, meta and JSON-LD, hover deltas |
 | `sampler.json.gz` | The raw per-frame sample. `node tools/redigest.mjs [slug]` re-cuts `motion.json` from it after a threshold change — no browser, no re-run |
 
+## When a packet is not a measurement
+
+Three failures return HTTP 200 and a complete-looking packet full of zeros,
+which reads exactly like *"this site has no motion"*. The runner names all three
+rather than letting them pass:
+
+| Printed | What happened | What to do |
+|---|---|---|
+| `!! LOOKS BLOCKED` | A bot wall. Cloudflare's *"Attention Required!"*, a Webflow CDN 403, a captcha | `--proxy socks5://host:port`, or run from another network |
+| `!! RENDER FAILED` · *error text* | The stylesheet loaded, the page crashed. CSS histograms are real; every frame, reveal and hover is not | Retry; if it persists the site needs a browser feature you disabled |
+| `!! RENDER FAILED` · *WebGL* | The whole page is a canvas and rendering was off | Re-run with `--webgl` |
+
+`facts.json` carries `blocked` and `renderFailed` so a packet can be re-checked
+later without re-reading the console. A block verdict needs either block-page
+text in the title or two corroborating signals — a lone third-party 403 is a
+dead analytics beacon, not a wall.
+
+And one that is not a failure but reads like one:
+
+- **`page.scrollHost`** is `document`, `element`, `wheel` or `none`. An app shell
+  scrolls an inner element; a scroll-hijacking library translates a wrapper and
+  leaves the document exactly one viewport tall. Both would otherwise report
+  *"1 screen, 0 reveals"* on a page full of them. The runner finds the real
+  scroller and falls back to dispatching wheel events, which drive all three.
+
 ## What it cannot see
 
 1. **Canvas and WebGL.** A shader hero yields frames and a fingerprint, never a
