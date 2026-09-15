@@ -34,7 +34,9 @@ shader hero is what cost the 15x. Without it a canvas hero captures as blank and
 `facts.json → webglRendered: false` records that it was not attempted — an
 honest gap rather than a silent one.
 
-Run one at a time.
+Run one at a time — and never the same site twice in quick succession. One site
+in the first queue here answered HTTP 429 for the rest of the session because a
+recovery loop retried it too eagerly.
 
 First run:
 
@@ -87,8 +89,9 @@ rather than letting them pass:
 | `!! LOOKS BLOCKED` | A bot wall. Cloudflare's *"Attention Required!"*, a Webflow CDN 403, a captcha | `--proxy socks5://host:port`, or run from another network |
 | `!! RENDER FAILED` · *error text* | The stylesheet loaded, the page crashed. CSS histograms are real; every frame, reveal and hover is not | Retry; if it persists the site needs a browser feature you disabled |
 | `!! RENDER FAILED` · *WebGL* | The whole page is a canvas and rendering was off | Re-run with `--webgl` |
+| `!! RATE-LIMITED` | HTTP 429. The site is refusing you, not failing | Wait, then retry **once**. A proxy usually gets the same answer, and re-running immediately is what caused it |
 
-`facts.json` carries `blocked` and `renderFailed` so a packet can be re-checked
+`facts.json` carries `blocked`, `renderFailed` and `throttled` so a packet can be re-checked
 later without re-reading the console. A block verdict needs either block-page
 text in the title or two corroborating signals — a lone third-party 403 is a
 dead analytics beacon, not a wall.

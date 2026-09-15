@@ -87,7 +87,12 @@ const LAUNCH = {
 function diagnose(facts) {
   const title = facts.surface.title || '';
   const text = `${title} ${facts.surface.headings.map(h => h.text).join(' ')}`.toLowerCase();
-  const blocked = [], crashed = [];
+  const blocked = [], crashed = [], throttled = [];
+
+  if (/\b429\b|slow down|too many requests|rate limit/.test(text))
+    throttled.push(`rate-limited: "${title}"`);
+  if (facts.consoleErrors.filter(e => /\b429\b/.test(e)).length >= 2)
+    throttled.push('repeated 429s in console');
 
   if (/sorry, you have been blocked|unable to access|access denied|attention required|just a moment|verify you are (a )?human|checking your browser|enable javascript and cookies|are you a robot|request blocked|captcha/.test(text))
     blocked.push(`block-page text: "${title}"`);
@@ -108,7 +113,13 @@ function diagnose(facts) {
   // A block page says so in its title; anything else is circumstantial and needs
   // corroboration. Third-party 403s alone are just a dead analytics beacon.
   const decisive = blocked.some(h => h.startsWith('block-page text'));
-  return { blocked: (decisive || blocked.length >= 2) ? blocked : [], crashed };
+  // Rate limiting is its own thing: not a wall to route around, a queue to wait
+  // out. A different exit IP usually gets the same answer.
+  return {
+    blocked: (decisive || blocked.length >= 2) ? blocked : [],
+    crashed: throttled.length ? [] : crashed,
+    throttled,
+  };
 }
 
 const NAV = 90000;
@@ -446,9 +457,10 @@ async function reducedMotionPass(browser) {
     const mobile = await attempt('mobile', () => mobilePass(browser));
     const reduced = await attempt('reduced-motion', () => reducedMotionPass(browser));
 
-    const { blocked, crashed } = diagnose(desktop.facts);
+    const { blocked, crashed, throttled } = diagnose(desktop.facts);
     desktop.facts.blocked = blocked.length ? blocked : false;
     desktop.facts.renderFailed = crashed.length ? crashed : false;
+    desktop.facts.throttled = throttled.length ? throttled : false;
     const motion = digestSampler(desktop.sampler);
     await save('facts.json', { ...desktop.facts, mobile, reducedMotion: reduced });
     await save('motion.json', motion);
@@ -470,6 +482,12 @@ async function reducedMotionPass(browser) {
       console.log(`\n  !! LOOKS BLOCKED — this packet is not a measurement of the site.`);
       for (const h of blocked) console.log(`     · ${h}`);
       console.log(`     Retry with --proxy or from another network. Do not write a teardown from this.`);
+    }
+    if (throttled.length) {
+      console.log(`\n  !! RATE-LIMITED — the site is refusing you, not failing.`);
+      for (const h of throttled) console.log(`     · ${h}`);
+      console.log(`     Wait, then retry once. A proxy usually gets the same answer,`);
+      console.log(`     and re-running immediately is what caused this.`);
     }
     if (crashed.length) {
       console.log(`\n  !! RENDER FAILED — the stylesheet loaded, the page did not.`);
