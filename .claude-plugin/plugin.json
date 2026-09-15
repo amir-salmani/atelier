@@ -1,0 +1,11 @@
+{
+  "name": "atelier",
+  "version": "0.1.0",
+  "description": "A method for designing products, and a tool that measures what live sites actually do. Three skills: atelier (the seven disciplines), teardown (learn from a real browser), inspire (choose a direction without cloning one).",
+  "author": { "name": "Amir-Salmani", "email": "hi@amirsalmani.com" },
+  "homepage": "https://github.com/amir-salmani/atelier",
+  "repository": "https://github.com/amir-salmani/atelier",
+  "license": "MIT",
+  "keywords": ["design", "ux", "motion", "product", "playwright", "web-design", "design-system", "accessibility"],
+  "skills": ["./skills/atelier", "./skills/teardown", "./skills/inspire"]
+}

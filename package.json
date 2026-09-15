@@ -1,0 +1,17 @@
+{
+  "name": "atelier-skills",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Teardown runner for the atelier skills — measures what a live site actually does.",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "teardown": "node tools/teardown.mjs",
+    "redigest": "node tools/redigest.mjs",
+    "postinstall": "node -e \"console.log('\\natelier: run `npx playwright install chromium` once before your first teardown.\\n')\""
+  },
+  "dependencies": {
+    "playwright": "^1.62.0"
+  }
+}

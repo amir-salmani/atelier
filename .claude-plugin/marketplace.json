@@ -1,0 +1,20 @@
+{
+  "name": "atelier",
+  "owner": { "name": "Amir-Salmani", "email": "hi@amirsalmani.com" },
+  "metadata": {
+    "description": "The atelier — a product design method, and a teardown tool that reads motion off live sites.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "atelier",
+      "source": "./",
+      "description": "Seven gated disciplines for designing a product, a browser-driven teardown tool for learning from live sites, and a direction-brief procedure that takes mechanism without taking dressing.",
+      "version": "0.1.0",
+      "author": { "name": "Amir-Salmani" },
+      "homepage": "https://github.com/amir-salmani/atelier",
+      "license": "MIT",
+      "keywords": ["design", "ux", "motion", "product", "playwright"]
+    }
+  ]
+}
