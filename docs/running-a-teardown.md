@@ -104,13 +104,32 @@ And one that is not a failure but reads like one:
 ## What it cannot see
 
 1. **Canvas and WebGL.** A shader hero yields frames and a fingerprint, never a
-   rule. Cerebrium's ribbons and Heron's scene are readable only as pictures.
+   rule.
+
+   `--webgl` renders the canvas through SwiftShader, which is enough for a
+   mostly-DOM page with a canvas in it. **It is not enough for a site that *is*
+   a canvas.** A 39-screen WebGL experience produced one frame in eight minutes
+   at four pinned cores, because every screenshot exceeded its timeout.
+
+   There is no headless fix. Measured on a Wayland session: the bundled headless
+   shell, full Chromium with `--use-gl=egl --enable-gpu`, the system Chrome, and
+   headed Chromium under `xvfb-run` **all four** report
+   `ANGLE (… SwiftShader driver)`. Hardware GL needs a real display session and
+   `headless: false` on it. Treat a canvas-only site as out of scope unless you
+   are willing to run a visible browser.
+
+2. **JavaScript-driven motion.** GSAP writes inline styles; it never appears in
+   `@keyframes` or a `transition` declaration. On a GSAP page `facts.json → css`
+   describes only the CSS layer, and the sampler catches JS motion only if it
+   fires inside the capture window. Check `stack.globals` for `gsap`, `Lenis`,
+   `barba` or `Swup` before reading a low `animatedTotal` as restraint.
 2. **Exact easing.** `motion.json` names the nearest of ten standard curves and
    reports its fit error. A named `expo.out` means *shaped like* expo.out. The
    stylesheet's literal `cubic-bezier()` in `facts.json` is the exact number,
    when one exists.
-3. **Anything behind auth, or a site that blocks headless Chromium.**
-4. **Real performance.** CWV here is one lab run on one machine over one
+4. **Anything behind auth**, and plenty that block headless Chromium — see
+   above.
+5. **Real performance.** CWV here is one lab run on one machine over one
    network. It ranks sites against each other; it is not a field number. For a
    real audit use the `web-perf` skill.
 
