@@ -1,0 +1,4 @@
+# Types this repo adopts beyond the shared vocabulary.
+# skills/*/SKILL.md deliberately carry no type: — they follow Claude Code's
+# frontmatter contract (name + description), not OKF's.
+Teardown
