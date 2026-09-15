@@ -18,6 +18,8 @@ authority; this file does not restate them.
 2. **Then the project's design system**, for the rules a direction has to
    survive.
 3. **Then `grep` the library** for the mechanism you need. Do not re-read it.
+4. **`../../method/type.md`** before committing a type pairing — it is the part
+   most often left to taste.
 
 ## The two things that make it fail
 

@@ -36,6 +36,8 @@ project's own design system; this owns only the order the work happens in.
 | What stack? Where are the seams? | `method/disciplines.md` §3 — and check it is allowed yet |
 | What do I build first? | `method/disciplines.md` §4 |
 | Can I start coding this? | `method/the-gate.md` |
+| Which sites should I even look at? | `method/watching.md` |
+| What typeface? What scale? | `method/type.md` |
 | What should it look like? How should it move? | `inspire` skill, then `method/originality.md` |
 | Emails, support, pricing page, cancellation, launch copy | `method/lanes.md` §A |
 | Did it work? | `method/disciplines.md` §6 |
@@ -43,7 +45,8 @@ project's own design system; this owns only the order the work happens in.
 ## Two halves, one failure mode
 
 **Product knowledge** — intake → evidence pool → journeys.
-**Design reference** — a teardown library → inspire → a direction brief.
+**Design reference** — watching → a teardown library → inspire → a direction
+brief.
 
 Both exist to stop a claim drifting from what it was based on, so both are
 gated. A journey may only cite pain retained in the pool

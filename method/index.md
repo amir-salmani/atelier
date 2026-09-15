@@ -20,6 +20,8 @@ own design system; this owns only the order the work happens in.
 | [intake](intake.md) | **Getting the knowledge.** What to ask, what never to ask, and when to stop |
 | [evidence](evidence.md) | **The pool.** What counts as pain, how it is marked, and the gate that keeps journeys tied to it |
 | [journeys](journeys.md) | The discipline-1 artifact, its voice rules, and how to review one |
+| [watching](watching.md) | **Where references come from**, which earn a capture, and the queue discipline |
+| [type](type.md) | What a direction must decide about typography, judged from measured sites |
 | [inspire](inspire.md) | Turning the teardown library into three priced, traced directions |
 | [originality](originality.md) | **The gate on the library.** Mechanism may be taken; dressing never |
 
@@ -47,8 +49,9 @@ how it avoids being someone else's.
 ## Two halves, one failure mode
 
 **Product knowledge** — [intake](intake.md) → [evidence](evidence.md) →
-[journeys](journeys.md). **Design reference** — a teardown library →
-[inspire](inspire.md) → a direction brief.
+[journeys](journeys.md). **Design reference** — [watching](watching.md) → a
+teardown library → [inspire](inspire.md) → a direction brief, with
+[type](type.md) as the part most often left to taste.
 
 Both exist to stop the same thing: *a claim drifting away from what it was based
 on.* So both are gated the same way. A journey may only cite pain retained in
